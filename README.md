@@ -1,5 +1,5 @@
 # ios-santoni
-Possibly from https://github.com/L1oly/ios-santoni, created by AI
+Possibly from https://github.com/L1oly/ios-santoni, created by Deepseek4.1flash，
 Experimental iOS 16 / XNU 8796 bring-up for the Xiaomi Redmi 4X (`santoni`),
 Qualcomm MSM8937 and Adreno 505.
 
