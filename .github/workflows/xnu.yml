@@ -413,7 +413,6 @@ jobs:
         if: ${{ always() && inputs.userspace_only == 'gles' }}
         with:
           name: santoni-graphics-gles-${{ github.sha }}
-          if-no-files-found: warn
           path: |
             out/graphics-gles/santoni-gles-probe
             out/graphics-gles/build.json
@@ -436,7 +435,7 @@ jobs:
             out/graphics-gles/mesa-archive-symbols.txt
             out/graphics-gles/ui-dispatch.json
             out/graphics-gles/mesa-build/meson-logs/meson-log.txt
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 7
       - uses: actions/upload-artifact@v4
         if: ${{ inputs.userspace_only == 'mesa' }}
