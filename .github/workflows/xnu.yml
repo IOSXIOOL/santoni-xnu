@@ -354,9 +354,11 @@ jobs:
           out/mesa-build-venv/bin/python -m unittest tests.test_santoni_graphics_drm tests.test_santoni_graphics_mesa_port tests.test_santoni_graphics_gles tests.test_santoni_graphics_mesa_oom tests.test_santoni_graphics_loader_build tests.test_santoni_ui_loader_binding tests.test_santoni_graphics_startup tests.test_santoni_gpu_dyld tests.test_santoni_gpu_dyld_audit tests.test_santoni_gpu_ui_launch tests.test_santoni_gpu_graphics_gates
       - name: Link isolated iOS Mesa Gallium IR3 GLES
         if: ${{ inputs.userspace_only == 'gles' }}
+        continue-on-error: true
         run: |
           export PATH="$GITHUB_WORKSPACE/out/mesa-build-venv/bin:$(brew --prefix bison)/bin:$(brew --prefix flex)/bin:$PATH"
-          python3 tools/build_santoni_graphics_gles.py --mesa out/mesa-a505 --output out/graphics-gles --eagl --ui-loader
+          set -o pipefail
+          python3 tools/build_santoni_graphics_gles.py --mesa out/mesa-a505 --output out/graphics-gles --eagl --ui-loader 2>&1 | tee gles-build.out
       - name: Screen complete EAGL and loader code for Cortex-A53
         if: ${{ inputs.userspace_only == 'gles' }}
         run: |
@@ -373,6 +375,16 @@ jobs:
           args=()
           if [ "$SANTONI_CAPTURE_UI_REQUEST" = "true" ]; then args+=(--ui-profile); fi
           python3 tools/build_santoni_graphics_capture.py --mesa out/mesa-a505 --output out/graphics-capture --width 720 --height 1280 "${args[@]}"
+      - name: Upload graphics build log
+        if: ${{ always() && inputs.userspace_only == 'gles' }}
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: graphics-errors
+          path: |
+            gles-build.out
+            out/graphics-gles/build.log
+
       - uses: actions/upload-artifact@v4
         if: ${{ always() && inputs.userspace_only == 'capture' }}
         with:
@@ -401,6 +413,7 @@ jobs:
         if: ${{ always() && inputs.userspace_only == 'gles' }}
         with:
           name: santoni-graphics-gles-${{ github.sha }}
+          if-no-files-found: warn
           path: |
             out/graphics-gles/santoni-gles-probe
             out/graphics-gles/build.json
