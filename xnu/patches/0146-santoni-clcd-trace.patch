@@ -1,0 +1,37 @@
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -136,15 +136,19 @@
+ 	fWidth = (uint32_t)video.v_width;
+ 	fHeight = (uint32_t)video.v_height;
+ 	fRowBytes = (uint32_t)video.v_rowBytes;
++	IOLog("SWEET FB: trace A phys=0x%llx %ux%u stride=%u\n", fPhys, fWidth, fHeight, fRowBytes);
+ 	if (fPhys == 0 || fWidth == 0 || fHeight == 0 || fRowBytes < fWidth * 4) {
+ 		IOLog("SWEET FB: no boot framebuffer\n");
+ 		return false;
+ 	}
+ 	fLock = IOLockAlloc();
+ 	fClients = OSArray::withCapacity(4);
++	IOLog("SWEET FB: trace B lock=%p clients=%p\n", fLock, fClients);
+ 	fSurface = sweet_surface_create_physical(fPhys, fWidth, fHeight, fRowBytes, SWEET_FB_FORMAT_BGRA);
+ 	fPixels = fSurface != NULL ? fSurface->kernelAddress() : 0;
++	IOLog("SWEET FB: trace C surface=%p pixels=%p\n", fSurface, fPixels);
+ 	fWorkLoop = IOWorkLoop::workLoop();
++	IOLog("SWEET FB: trace D workloop=%p\n", fWorkLoop);
+ 	if (fLock == NULL || fClients == NULL || fPixels == 0 || fWorkLoop == NULL) {
+ 		IOLog("SWEET FB: setup failed\n");
+ 		OSSafeReleaseNULL(fSurface);    /* stays published: also held by the table */
+@@ -152,11 +156,13 @@
+ 		return false;
+ 	}
+ 	fVsync = IOTimerEventSource::timerEventSource(this, &AppleCLCD::vsyncFired);
++	IOLog("SWEET FB: trace E vsync=%p\n", fVsync);
+ 	if (fVsync == NULL || fWorkLoop->addEventSource(fVsync) != kIOReturnSuccess) {
+ 		IOLog("SWEET FB: no vsync timer\n");
+ 		return false;
+ 	}
+ 	fVsync->setTimeoutUS(SWEET_FB_VSYNC_US);
++	IOLog("SWEET FB: trace F armed\n");
+ 
+ 	setProperty(kIOUserClientClassKey, "IOMobileFramebufferUserClient");
+ 	setProperty("external", false);
