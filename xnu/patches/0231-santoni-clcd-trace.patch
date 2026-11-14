@@ -5,7 +5,7 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
  	fWidth = (uint32_t)video.v_width;
  	fHeight = (uint32_t)video.v_height;
  	fRowBytes = (uint32_t)video.v_rowBytes;
-+	IOLog("SWEET FB: trace A phys=0x%llx %ux%u stride=%u depth=%u\n", fPhys, fWidth, fHeight, fRowBytes, (unsigned)video.v_depth);
++	IOLog("SWEET FB: trace A phys=0x%llx %ux%u stride=%u depth=%u\n", fPhys, (unsigned)fWidth, (unsigned)fHeight, (unsigned)fRowBytes, (unsigned)video.v_depth);
  	fPanelStride = fRowBytes;
  	/*
  	 * santoni: the ABL continuous-splash framebuffer is 24-bit BGR with a
@@ -21,7 +21,7 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
  	PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz));
  	fFlushTicks = (hz == 0 || hz >= 60) ? 1 : 60 / hz;
  	fVsync->setTimeoutUS(SWEET_FB_VSYNC_US);
-+	IOLog("SWEET FB: trace E vsync armed hz=%u\n", hz);
++	IOLog("SWEET FB: trace E vsync armed\n");
  
  	setProperty(kIOUserClientClassKey, "IOMobileFramebufferUserClient");
  	setProperty("external", false);
@@ -30,7 +30,7 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
  	uint64_t now = mach_absolute_time();
  	uint64_t count = ++fb->fVsyncCount;
 +	if ((count % 120) == 1) {
-+		IOLog("SWEET FB: vsync %llu dirty=%u cons=%u\n", count, fb->fDirty, fb->fConsShown);
++		IOLog("SWEET FB: vsync %llu dirty=%d cons=%d\n", count, (int)fb->fDirty, (int)fb->fConsShown);
 +	}
  	uint64_t values[6] = {
  		(uint32_t)count, (uint32_t)(count >> 32),
@@ -44,15 +44,15 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
 +	static uint32_t sBlitLog;
 +	if (fBpp != 3 || fPanelVA == 0 || fPixels == 0) {
 +		if (sBlitLog < 3) {
-+			IOLog("SWEET FB: blit skip bpp=%u va=0x%llx px=0x%llx\n", fBpp,
++			IOLog("SWEET FB: blit skip bpp=%u va=0x%llx px=0x%llx\n", (unsigned)fBpp,
 +			    (unsigned long long)fPanelVA, (unsigned long long)fPixels);
 +			sBlitLog++;
 +		}
 +		return;
 +	}
 +	if (sBlitLog < 3 || (sBlitLog % 120) == 0) {
-+		IOLog("SWEET FB: blit #%u %ux%u stride %u->%u\n", sBlitLog, fWidth, fHeight,
-+		    fRowBytes, fPanelStride);
++		IOLog("SWEET FB: blit #%u %ux%u stride %u->%u\n", (unsigned)sBlitLog,
++		    (unsigned)fWidth, (unsigned)fHeight, (unsigned)fRowBytes, (unsigned)fPanelStride);
 +	}
 +	sBlitLog++;
  	sweet_bgra_to_bgr24(fPanelVA, fPanelStride, (const uint8_t *)fPixels,
