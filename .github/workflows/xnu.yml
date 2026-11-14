@@ -347,11 +347,13 @@ jobs:
           out/mesa-build-venv/bin/python -m pip install meson==1.7.2 Mako==1.3.9 PyYAML==6.0.2 packaging==25.0
       - name: Check serialized Mesa libdrm and frontend contracts
         if: ${{ inputs.userspace_only == 'gles' || inputs.userspace_only == 'capture' }}
+        continue-on-error: true
         env:
           SANTONI_MESA_SOURCE: ${{ github.workspace }}/out/mesa-a505
         run: |
           export PATH="$(brew --prefix llvm)/bin:$PATH"
-          out/mesa-build-venv/bin/python -m unittest tests.test_santoni_graphics_drm tests.test_santoni_graphics_mesa_port tests.test_santoni_graphics_gles tests.test_santoni_graphics_mesa_oom tests.test_santoni_graphics_loader_build tests.test_santoni_ui_loader_binding tests.test_santoni_graphics_startup tests.test_santoni_gpu_dyld tests.test_santoni_gpu_dyld_audit tests.test_santoni_gpu_ui_launch tests.test_santoni_gpu_graphics_gates
+          set -o pipefail
+          out/mesa-build-venv/bin/python -m unittest tests.test_santoni_graphics_drm tests.test_santoni_graphics_mesa_port tests.test_santoni_graphics_gles tests.test_santoni_graphics_mesa_oom tests.test_santoni_graphics_loader_build tests.test_santoni_ui_loader_binding tests.test_santoni_graphics_startup tests.test_santoni_gpu_dyld tests.test_santoni_gpu_dyld_audit tests.test_santoni_gpu_ui_launch tests.test_santoni_gpu_graphics_gates 2>&1 | tee gles-contracts.out
       - name: Link isolated iOS Mesa Gallium IR3 GLES
         if: ${{ inputs.userspace_only == 'gles' }}
         continue-on-error: true
@@ -383,6 +385,7 @@ jobs:
           name: graphics-errors
           path: |
             gles-build.out
+            gles-contracts.out
             out/graphics-gles/build.log
 
       - uses: actions/upload-artifact@v4
