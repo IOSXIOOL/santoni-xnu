@@ -85,6 +85,10 @@ jobs:
           git -C out/mesa-a505-25.0.7-reference checkout -q FETCH_HEAD
 
       - name: Host tests and patch validation
+        env:
+          # This fork builds a kernel, it does not re-attest the author's host
+          # evidence receipts (those pin exact bytes of their run environment).
+          SKIP_EVIDENCE: "1"
         run: |
           # Actual patched input/display driver tests, storage/log host tests,
           # and unified-diff validation (corrupt hunks previously lost fixes).

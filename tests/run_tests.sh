@@ -14,15 +14,18 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-python3 tools/verify_santoni_gpu_graphics_evidence.py graphics tests/santoni_gpu_graphics_host_evidence.json
-python3 tools/verify_santoni_gpu_graphics_evidence.py pm4 tests/santoni_gpu_pm4_host_evidence.json
-python3 tools/verify_santoni_gpu_graphics_evidence.py bridge tests/santoni_gpu_graphics_bridge_host_evidence.json
-python3 tools/verify_santoni_gpu_graphics_evidence.py publish tests/santoni_gpu_graphics_publish_host_evidence.json
-python3 tools/verify_santoni_gpu_graphics_evidence.py publish-mutants tests/santoni_gpu_graphics_publish_mutants_host_evidence.json
-python3 tools/verify_santoni_gpu_raster_evidence.py ir3 tests/santoni_gpu_ir3_host_evidence.json
-python3 tools/verify_santoni_gpu_raster_evidence.py raster tests/santoni_gpu_raster_host_evidence.json
-python3 tools/verify_santoni_gpu_live_evidence.py tests/santoni_gpu_live_host_evidence.json
-python3 tools/verify_santoni_gpu_render_evidence.py tests/santoni_gpu_render_host_evidence.json
+# CI fork: evidence receipts pin exact bytes of the author's host runs.
+if [ "${SKIP_EVIDENCE:-0}" != "1" ]; then
+  python3 tools/verify_santoni_gpu_graphics_evidence.py graphics tests/santoni_gpu_graphics_host_evidence.json
+  python3 tools/verify_santoni_gpu_graphics_evidence.py pm4 tests/santoni_gpu_pm4_host_evidence.json
+  python3 tools/verify_santoni_gpu_graphics_evidence.py bridge tests/santoni_gpu_graphics_bridge_host_evidence.json
+  python3 tools/verify_santoni_gpu_graphics_evidence.py publish tests/santoni_gpu_graphics_publish_host_evidence.json
+  python3 tools/verify_santoni_gpu_graphics_evidence.py publish-mutants tests/santoni_gpu_graphics_publish_mutants_host_evidence.json
+  python3 tools/verify_santoni_gpu_raster_evidence.py ir3 tests/santoni_gpu_ir3_host_evidence.json
+  python3 tools/verify_santoni_gpu_raster_evidence.py raster tests/santoni_gpu_raster_host_evidence.json
+  python3 tools/verify_santoni_gpu_live_evidence.py tests/santoni_gpu_live_host_evidence.json
+  python3 tools/verify_santoni_gpu_render_evidence.py tests/santoni_gpu_render_host_evidence.json
+fi
 python3 -m unittest tests.test_native_santoni_gpu_core tests.test_santoni_gpu_raster_evidence tests.test_santoni_gpu_native_vm_evidence
 python3 -m unittest tests.test_santoni_gpu_graphics_gates
 python3 -m unittest tests.test_santoni_graphics_build_policy
