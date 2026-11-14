@@ -262,7 +262,8 @@ jobs:
           if-no-files-found: error
 
       - name: Collect boot kernel only
-        if: success()
+        if: always()
+        continue-on-error: true
         run: |
           # Keep phone downloads small: omit build maps, KDK dumps and host tests.
           mkdir -p boot-kernel
