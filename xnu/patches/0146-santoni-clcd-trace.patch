@@ -5,11 +5,11 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
  	fWidth = (uint32_t)video.v_width;
  	fHeight = (uint32_t)video.v_height;
  	fRowBytes = (uint32_t)video.v_rowBytes;
-+	IOLog("SWEET FB: trace A phys=0x%llx %ux%u stride=%u\n", fPhys, fWidth, fHeight, fRowBytes);
++	IOLog("SWEET FB: trace A phys=0x%llx %ux%u stride=%u depth=%u\n", fPhys, fWidth, fHeight, fRowBytes, (unsigned)video.v_depth);
  	fPanelStride = fRowBytes;
  	/*
  	 * santoni: the ABL continuous-splash framebuffer is 24-bit BGR with a
-@@ -321,11 +322,13 @@
+@@ -321,6 +322,7 @@
  	fOffY = (int32_t)(fLogicalH - fHeight) / 2;
  	fLock = IOLockAlloc();
  	fClients = OSArray::withCapacity(4);
@@ -17,33 +17,33 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
  	if (fBpp == 4) {
  		/* sweet: the panel memory is already 32-bit BGRA; publish it. */
  		fSurface = sweet_surface_create_physical(fPhys, fWidth, fHeight, fRowBytes,
- 		    SWEET_FB_FORMAT_BGRA);
- 		fPixels = fSurface != NULL ? fSurface->kernelAddress() : 0;
-+	IOLog("SWEET FB: trace C surface=%p pixels=%p\n", fSurface, fPixels);
- 	} else {
- 		/*
- 		 * santoni: a 24-bit panel is not a 32-bit IOSurface (bytesPerRow
-@@ -344,6 +347,7 @@
+@@ -343,6 +345,7 @@
+ 		/* kernel alias of the published shadow: what the layers compose into */
  		fPixels = fSurface != NULL ? fSurface->kernelAddress() : 0;
  	}
++	IOLog("SWEET FB: trace C bpp=%u surface=%p pixels=0x%llx panelVA=0x%llx\n", fBpp, fSurface, (unsigned long long)fPixels, (unsigned long long)fPanelVA);
  	fWorkLoop = IOWorkLoop::workLoop();
-+	IOLog("SWEET FB: trace D workloop=%p\n", fWorkLoop);
  	if (fLock == NULL || fClients == NULL || fPixels == 0 || fWorkLoop == NULL ||
  	    (fBpp == 3 && fPanelVA == 0)) {
- 		IOLog("SWEET FB: setup failed\n");
-@@ -352,6 +356,7 @@
+@@ -352,6 +355,7 @@
  		return false;
  	}
  	fVsync = IOTimerEventSource::timerEventSource(this, &AppleCLCD::vsyncFired);
-+	IOLog("SWEET FB: trace E vsync=%p\n", fVsync);
++	IOLog("SWEET FB: trace D workloop=%p vsync=%p\n", fWorkLoop, fVsync);
  	if (fVsync == NULL || fWorkLoop->addEventSource(fVsync) != kIOReturnSuccess) {
  		IOLog("SWEET FB: no vsync timer\n");
  		return false;
-@@ -465,6 +470,7 @@
+@@ -465,11 +469,13 @@
  	PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz));
  	fFlushTicks = (hz == 0 || hz >= 60) ? 1 : 60 / hz;
  	fVsync->setTimeoutUS(SWEET_FB_VSYNC_US);
-+	IOLog("SWEET FB: trace F armed\n");
++	IOLog("SWEET FB: trace E vsync armed\n");
  
  	setProperty(kIOUserClientClassKey, "IOMobileFramebufferUserClient");
  	setProperty("external", false);
+ 	setProperty("DisplayPipePlaneBaseAlignment", 64ULL, 32);
+ 	registerService();
++	IOLog("SWEET FB: trace F registering done\n");
+ 	IOLog("SWEET FB: AppleCLCD %ux%u panel stride %u %u-bpp at 0x%llx, frame stride %u, "
+ 	    "default surface %u, presented as %ux%u\n",
+ 	    fWidth, fHeight, fPanelStride, fBpp * 8, fPhys, fRowBytes, fSurface->id,
