@@ -1,4 +1,5 @@
 name: xnu
+# force-run: trace build for AppleCLCD instrumentation
 
 on:
   workflow_dispatch:
