@@ -35,7 +35,7 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
  	uint64_t values[6] = {
  		(uint32_t)count, (uint32_t)(count >> 32),
  		(uint32_t)now, (uint32_t)(now >> 32),
-@@ -703,9 +709,83 @@
+@@ -703,9 +709,99 @@
  void
  AppleCLCD::blitPanel()
  {
@@ -75,13 +75,23 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
 +			const uint32_t *src = (const uint32_t *)best->kernelAddress();
 +			uint32_t sw = best->width, sh = best->height;
 +			uint32_t sstride = best->bytesPerRow / 4;
-+			uint32_t sxstep = (uint32_t)(((uint64_t)sw << 16) / fWidth);
-+			for (uint32_t y = 0; y < fHeight; y++) {
++			uint32_t fit = (uint32_t)(((uint64_t)sw * fHeight) / sh);
++			uint32_t xoff, sxstep, y, x;
++			if (fit > fWidth) fit = fWidth;
++			xoff = (fWidth - fit) / 2;
++			sxstep = (uint32_t)(((uint64_t)sw << 16) / fit);
++			for (y = 0; y < fHeight; y++) {
 +				uint32_t sy = (uint32_t)(((uint64_t)y * sh) / fHeight);
 +				const uint32_t *row = src + (uint64_t)sy * sstride;
 +				uint8_t *out = (uint8_t *)(fPanelVA + (uint64_t)y * fPanelStride);
 +				uint32_t sx = 0;
-+				for (uint32_t x = 0; x < fWidth; x++) {
++				for (x = 0; x < xoff; x++) {
++					out[0] = 0;
++					out[1] = 0;
++					out[2] = 0;
++					out += 3;
++				}
++				for (x = 0; x < fit; x++) {
 +					uint32_t p = row[sx >> 16];
 +					sx += sxstep;
 +					out[0] = (uint8_t)p;
@@ -89,12 +99,18 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
 +					out[2] = (uint8_t)(p >> 16);
 +					out += 3;
 +				}
++				for (x = xoff + fit; x < fWidth; x++) {
++					out[0] = 0;
++					out[1] = 0;
++					out[2] = 0;
++					out += 3;
++				}
 +			}
 +			__asm__ volatile("dsb sy" ::: "memory");
 +			if (sPinId != bestid) {
 +				sPinId = bestid;
-+				IOLog("SWEET FB: PIN surf=%u nz=%u blit=%u\n",
-+				    bestid, bestnz, (unsigned)sBlitLog);
++				IOLog("SWEET FB: PIN surf=%u nz=%u fit=%u/%u blit=%u\n",
++				    bestid, bestnz, fit, (unsigned)fWidth, (unsigned)sBlitLog);
 +			}
 +			OSSafeReleaseNULL(best);
 +			sBlitLog++;
