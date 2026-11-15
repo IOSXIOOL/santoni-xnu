@@ -25,12 +25,15 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
  
  	setProperty(kIOUserClientClassKey, "IOMobileFramebufferUserClient");
  	setProperty("external", false);
-@@ -483,6 +486,9 @@
+@@ -483,6 +486,12 @@
  	AppleCLCD *fb = (AppleCLCD *)owner;
  	uint64_t now = mach_absolute_time();
  	uint64_t count = ++fb->fVsyncCount;
 +	if ((count % 120) == 1) {
 +		IOLog("SWEET FB: vsync %llu dirty=%d cons=%d\n", count, (int)fb->fDirty, (int)fb->fConsShown);
++	}
++	if (fb->fBpp == 3 && fb->fPanelVA != 0) {
++		fb->blitPanel();
 +	}
  	uint64_t values[6] = {
  		(uint32_t)count, (uint32_t)(count >> 32),
