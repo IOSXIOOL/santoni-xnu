@@ -1,0 +1,11 @@
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -479,5 +479,7 @@
+ 	case kSweetFBGetDisplaySize:
+ 		out[0] = fFB->fLogicalW;
+ 		out[1] = fFB->fLogicalH;
++		IOLog("SWEET FB: GetDisplaySize -> %ux%u\n",
++		    (unsigned)out[0], (unsigned)out[1]);
+ 		outCount = 2;
+ 		break;
