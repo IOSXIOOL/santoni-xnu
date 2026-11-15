@@ -35,38 +35,44 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
  	uint64_t values[6] = {
  		(uint32_t)count, (uint32_t)(count >> 32),
  		(uint32_t)now, (uint32_t)(now >> 32),
-@@ -703,9 +709,77 @@
+@@ -703,9 +709,86 @@
  void
  AppleCLCD::blitPanel()
  {
 +	static uint32_t sBlitLog;
++	static uint32_t sPinId;
  	if (fBpp != 3 || fPanelVA == 0 || fPixels == 0) {
  		return;
  	}
-+	if ((sBlitLog < 8) || ((sBlitLog % 60) == 0)) {
++	{
 +		SweetSurface *best = NULL;
 +		uint32_t bestnz = 0, bestid = 0;
-+		for (uint32_t id = 1; id < 64; id++) {
-+			SweetSurface *t = sweet_surface_copy(id);
-+			if (t == NULL) continue;
-+			if (t->bytesPerElement == 4 && t->width >= fWidth && t->height >= fHeight) {
-+				const uint32_t *q = (const uint32_t *)t->kernelAddress();
-+				uint32_t total = t->width * t->height, step = total / 1024, nz = 0;
-+				if (step == 0) step = 1;
-+				for (uint32_t i = 0; i < total; i += step) {
-+					if (q[i] & 0x00ffffffu) nz++;
++		if (sPinId != 0) {
++			best = sweet_surface_copy(sPinId);
++			if (best != NULL) { bestnz = 0xffffu; bestid = sPinId; }
++		} else if ((sBlitLog < 8) || ((sBlitLog % 60) == 0)) {
++			for (uint32_t id = 1; id < 64; id++) {
++				SweetSurface *t = sweet_surface_copy(id);
++				if (t == NULL) continue;
++				if (t->bytesPerElement == 4 && t->width >= fWidth && t->height >= fHeight) {
++					const uint32_t *q = (const uint32_t *)t->kernelAddress();
++					uint32_t total = t->width * t->height, step = total / 1024, nz = 0;
++					if (step == 0) step = 1;
++					for (uint32_t i = 0; i < total; i += step) {
++						if (q[i] & 0x00ffffffu) nz++;
++					}
++					IOLog("SWEET SURF PROBE: id=%u %ux%u bpr=%u nz=%u first=0x%08x\n",
++					    id, t->width, t->height, t->bytesPerRow, nz, q[0]);
++					if (nz > bestnz) {
++						OSSafeReleaseNULL(best);
++						best = t;
++						bestnz = nz;
++						bestid = id;
++						continue;
++					}
 +				}
-+				IOLog("SWEET SURF PROBE: id=%u %ux%u bpr=%u nz=%u first=0x%08x\n",
-+				    id, t->width, t->height, t->bytesPerRow, nz, q[0]);
-+				if (nz > bestnz) {
-+					OSSafeReleaseNULL(best);
-+					best = t;
-+					bestnz = nz;
-+					bestid = id;
-+					continue;
-+				}
++				OSSafeReleaseNULL(t);
 +			}
-+			OSSafeReleaseNULL(t);
 +		}
 +		if (best != NULL && bestnz > 8) {
 +			const uint32_t *src = (const uint32_t *)best->kernelAddress();
@@ -88,8 +94,11 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
 +				}
 +			}
 +			__asm__ volatile("dsb sy" ::: "memory");
-+			IOLog("SWEET FB: PRESENT surf=%u nz=%u blit=%u\n",
-+			    bestid, bestnz, (unsigned)sBlitLog);
++			if (sPinId != bestid) {
++				sPinId = bestid;
++				IOLog("SWEET FB: PIN surf=%u nz=%u blit=%u\n",
++				    bestid, bestnz, (unsigned)sBlitLog);
++			}
 +			OSSafeReleaseNULL(best);
 +			sBlitLog++;
 +			return;
