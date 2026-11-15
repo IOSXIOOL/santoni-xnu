@@ -35,13 +35,14 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
  	uint64_t values[6] = {
  		(uint32_t)count, (uint32_t)(count >> 32),
  		(uint32_t)now, (uint32_t)(now >> 32),
-@@ -703,9 +709,120 @@
+@@ -703,9 +709,141 @@
  void
  AppleCLCD::blitPanel()
  {
 +	static uint32_t sBlitLog;
 +	static uint32_t sPinId;
 +	static uint32_t sWant;
++	static uint32_t sStretch;
 +	static int sWantRead;
  	if (fBpp != 3 || fPanelVA == 0 || fPixels == 0) {
  		return;
@@ -73,6 +74,21 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
 +			bestid = sPinId;
 +		}
 +		SweetSurface *best = bestid ? sweet_surface_copy(bestid) : NULL;
++		uint32_t live = 0;
++		if (best != NULL && best->bytesPerElement == 4 && best->width >= fWidth) {
++			const uint32_t *qc = (const uint32_t *)best->kernelAddress();
++			uint32_t totalc = best->width * best->height, stepc = totalc / 256;
++			if (qc != NULL) {
++				if (stepc == 0) stepc = 1;
++				for (uint32_t i2 = 0; i2 < totalc; i2 += stepc) {
++					if (qc[i2] & 0x00ffffffu) live++;
++				}
++			}
++		}
++		if (best != NULL && live < 8) {
++			sPinId = 0;
++			OSSafeReleaseNULL(best);
++		}
 +		if (best != NULL && best->bytesPerElement == 4 && best->width >= fWidth) {
 +			const uint32_t *src = (const uint32_t *)best->kernelAddress();
 +			uint32_t sw = best->width, sh = best->height;
@@ -82,10 +98,15 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
 +			if (!sWantRead) {
 +				sWantRead = 1;
 +				PE_parse_boot_argn("sweetfit", &sWant, sizeof(sWant));
++				PE_parse_boot_argn("sweetstretch", &sStretch, sizeof(sStretch));
 +			}
 +			if (sWant > 0 && sWant <= fWidth) fit = sWant;
 +			if (fit == 0 || fit > fWidth) fit = fWidth;
 +			scaled_h = (uint32_t)(((uint64_t)sh * fit) / sw);
++			if (sStretch) {
++				fit = fWidth;
++				scaled_h = fHeight;
++			}
 +			ypad = scaled_h < fHeight ? (fHeight - scaled_h) / 2 : 0;
 +			yoff = scaled_h > fHeight ? (scaled_h - fHeight) / 2 : 0;
 +			xoff = (fWidth - fit) / 2;
