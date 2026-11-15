@@ -1,10 +1,19 @@
 diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
 --- a/iokit/Kernel/arm/SweetFramebuffer.cpp
 +++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
-@@ -479,5 +479,7 @@
+@@ -479,5 +479,14 @@
  	case kSweetFBGetDisplaySize:
- 		out[0] = fFB->fLogicalW;
- 		out[1] = fFB->fLogicalH;
+-		out[0] = fFB->fLogicalW;
+-		out[1] = fFB->fLogicalH;
++		/*
++		 * fLogicalW/H are only assigned in start(). A client that asks
++		 * earlier would read uninitialised members and iOS would fall
++		 * back to its device profile, so clamp to the panel instead.
++		 */
++		out[0] = (fFB->fLogicalW >= 320 && fFB->fLogicalW <= 4096) ?
++		    fFB->fLogicalW : fFB->fWidth;
++		out[1] = (fFB->fLogicalH >= 320 && fFB->fLogicalH <= 4096) ?
++		    fFB->fLogicalH : fFB->fHeight;
 +		IOLog("SWEET FB: GetDisplaySize -> %ux%u\n",
 +		    (unsigned)out[0], (unsigned)out[1]);
  		outCount = 2;
