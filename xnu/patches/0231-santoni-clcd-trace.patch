@@ -85,7 +85,7 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
 +				}
 +			}
 +		}
-+		if (best != NULL && live < 8) {
++		if (best != NULL && live == 0) {
 +			sPinId = 0;
 +			OSSafeReleaseNULL(best);
 +		}
