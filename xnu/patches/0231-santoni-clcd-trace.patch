@@ -35,7 +35,7 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
  	uint64_t values[6] = {
  		(uint32_t)count, (uint32_t)(count >> 32),
  		(uint32_t)now, (uint32_t)(now >> 32),
-@@ -703,9 +709,16 @@
+@@ -703,9 +709,77 @@
  void
  AppleCLCD::blitPanel()
  {
@@ -43,10 +43,71 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
  	if (fBpp != 3 || fPanelVA == 0 || fPixels == 0) {
  		return;
  	}
++	if ((sBlitLog < 8) || ((sBlitLog % 60) == 0)) {
++		SweetSurface *best = NULL;
++		uint32_t bestnz = 0, bestid = 0;
++		for (uint32_t id = 1; id < 64; id++) {
++			SweetSurface *t = sweet_surface_copy(id);
++			if (t == NULL) continue;
++			if (t->bytesPerElement == 4 && t->width >= fWidth && t->height >= fHeight) {
++				const uint32_t *q = (const uint32_t *)t->kernelAddress();
++				uint32_t total = t->width * t->height, step = total / 1024, nz = 0;
++				if (step == 0) step = 1;
++				for (uint32_t i = 0; i < total; i += step) {
++					if (q[i] & 0x00ffffffu) nz++;
++				}
++				IOLog("SWEET SURF PROBE: id=%u %ux%u bpr=%u nz=%u first=0x%08x\n",
++				    id, t->width, t->height, t->bytesPerRow, nz, q[0]);
++				if (nz > bestnz) {
++					OSSafeReleaseNULL(best);
++					best = t;
++					bestnz = nz;
++					bestid = id;
++					continue;
++				}
++			}
++			OSSafeReleaseNULL(t);
++		}
++		if (best != NULL && bestnz > 8) {
++			const uint32_t *src = (const uint32_t *)best->kernelAddress();
++			uint32_t sw = best->width, sh = best->height;
++			uint32_t sstride = best->bytesPerRow / 4;
++			uint32_t sxstep = (uint32_t)(((uint64_t)sw << 16) / fWidth);
++			for (uint32_t y = 0; y < fHeight; y++) {
++				uint32_t sy = (uint32_t)(((uint64_t)y * sh) / fHeight);
++				const uint32_t *row = src + (uint64_t)sy * sstride;
++				uint8_t *out = (uint8_t *)(fPanelVA + (uint64_t)y * fPanelStride);
++				uint32_t sx = 0;
++				for (uint32_t x = 0; x < fWidth; x++) {
++					uint32_t p = row[sx >> 16];
++					sx += sxstep;
++					out[0] = (uint8_t)p;
++					out[1] = (uint8_t)(p >> 8);
++					out[2] = (uint8_t)(p >> 16);
++					out += 3;
++				}
++			}
++			__asm__ volatile("dsb sy" ::: "memory");
++			IOLog("SWEET FB: PRESENT surf=%u nz=%u blit=%u\n",
++			    bestid, bestnz, (unsigned)sBlitLog);
++			OSSafeReleaseNULL(best);
++			sBlitLog++;
++			return;
++		}
++		OSSafeReleaseNULL(best);
++	}
 +	if ((sBlitLog < 3) || ((sBlitLog % 120) == 0)) {
++		const uint32_t *probe = (const uint32_t *)fPixels;
++		uint32_t pixels = fWidth * fHeight, step = pixels / 2048, nz = 0, i;
++		if (step == 0) step = 1;
++		for (i = 0; i < pixels; i += step) {
++			if (probe[i] & 0x00ffffffu) nz++;
++		}
 +		IOLog("SWEET FB: blit #%u %ux%u stride %u->%u va=0x%llx\n", (unsigned)sBlitLog,
 +		    (unsigned)fWidth, (unsigned)fHeight, (unsigned)fRowBytes, (unsigned)fPanelStride,
 +		    (unsigned long long)fPanelVA);
++		IOLog("SWEET FB: PIXELS #%u first=0x%08x nz=%u/%u\n", (unsigned)sBlitLog,
++		    probe[0], (unsigned)nz, (unsigned)(pixels / step));
 +	}
 +	sBlitLog++;
  	sweet_bgra_to_bgr24(fPanelVA, fPanelStride, (const uint8_t *)fPixels,
