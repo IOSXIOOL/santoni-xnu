@@ -35,7 +35,7 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
  	uint64_t values[6] = {
  		(uint32_t)count, (uint32_t)(count >> 32),
  		(uint32_t)now, (uint32_t)(now >> 32),
-@@ -703,9 +709,141 @@
+@@ -703,9 +709,165 @@
  void
  AppleCLCD::blitPanel()
  {
@@ -43,6 +43,7 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
 +	static uint32_t sPinId;
 +	static uint32_t sWant;
 +	static uint32_t sStretch;
++	static uint32_t sCrop;
 +	static int sWantRead;
  	if (fBpp != 3 || fPanelVA == 0 || fPixels == 0) {
  		return;
@@ -93,12 +94,35 @@ diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFrame
 +			const uint32_t *src = (const uint32_t *)best->kernelAddress();
 +			uint32_t sw = best->width, sh = best->height;
 +			uint32_t sstride = best->bytesPerRow / 4;
++			if (sCrop) {
++				for (uint32_t cy = 0; cy < fHeight; cy++) {
++					const uint32_t *crow = src + (uint64_t)cy * sstride;
++					uint8_t *cout = (uint8_t *)(fPanelVA + (uint64_t)cy * fPanelStride);
++					for (uint32_t cx = 0; cx < fWidth; cx++) {
++						uint32_t cp2 = crow[cx];
++						cout[0] = (uint8_t)cp2;
++						cout[1] = (uint8_t)(cp2 >> 8);
++						cout[2] = (uint8_t)(cp2 >> 16);
++						cout += 3;
++					}
++				}
++				__asm__ volatile("dsb sy" ::: "memory");
++				if (sPinId != bestid) {
++					sPinId = bestid;
++					IOLog("SWEET FB: PIN surf=%u crop nz=%u blit=%u\n",
++					    bestid, bestnz, (unsigned)sBlitLog);
++				}
++				OSSafeReleaseNULL(best);
++				sBlitLog++;
++				return;
++			}
 +			uint32_t fit = (uint32_t)(((uint64_t)sw * fHeight) / sh);
 +			uint32_t scaled_h, ypad, yoff, xoff, sxstep, y, x;
 +			if (!sWantRead) {
 +				sWantRead = 1;
 +				PE_parse_boot_argn("sweetfit", &sWant, sizeof(sWant));
 +				PE_parse_boot_argn("sweetstretch", &sStretch, sizeof(sStretch));
++				PE_parse_boot_argn("sweetcrop", &sCrop, sizeof(sCrop));
 +			}
 +			if (sWant > 0 && sWant <= fWidth) fit = sWant;
 +			if (fit == 0 || fit > fWidth) fit = fWidth;
