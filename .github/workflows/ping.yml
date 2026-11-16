@@ -3,6 +3,6 @@ on:
   workflow_dispatch:
 jobs:
   ping:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
-      - run: echo alive
+      - run: echo alive-latest
