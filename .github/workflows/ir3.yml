@@ -1,0 +1,60 @@
+name: ir3-disasm
+
+on:
+  workflow_dispatch:
+
+jobs:
+  disasm:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y meson ninja-build python3-mako python3-yaml \
+            bison flex pkg-config libdrm-dev libzstd-dev libexpat1-dev \
+            libx11-dev libxext-dev libxdamage-dev libxfixes-dev libxrandr-dev \
+            libxcb1-dev libxcb-dri2-0-dev libxcb-glx0-dev libxcb-shm0-dev \
+            libxcb-dri3-dev libxcb-present-dev libxcb-sync-dev libxshmfence-dev \
+            libxxf86vm-dev libwayland-dev
+
+      - name: clone mesa
+        run: |
+          git clone --depth 1 --branch mesa-25.0.7 \
+            https://github.com/chaotic-cx/mesa-mirror.git mesa
+
+      - name: build ir3-disasm
+        run: |
+          cd mesa
+          meson setup build \
+            -Dgallium-drivers= -Dvulkan-drivers= -Dglx=disabled -Degl=disabled \
+            -Dgbm=disabled -Dopengl=false -Dplatforms= \
+            -Dtools=freedreno -Dbuildtype=release
+          ninja -C build src/freedreno/isa/ir3-disasm || ninja -C build ir3-disasm
+
+      - name: dump captured shaders
+        run: |
+          python3 - <<'EOF'
+          import re, struct
+          from pathlib import Path
+          cap = Path('tests/santoni_gpu_ir3_captured.h').read_text()
+          for kind, body in re.findall(r'/\* kind(\d).*?\*/(.*?)\},', cap, re.S):
+              words = [int(w,16) for w in re.findall(r'0x([0-9a-fA-F]{8})', body)]
+              Path(f'kind{kind}.bin').write_bytes(b''.join(struct.pack('<I', w) for w in words))
+              print(kind, len(words))
+          EOF
+
+      - name: disassemble
+        run: |
+          BIN=$(find mesa/build -name 'ir3-disasm' -type f | head -1)
+          echo "tool: $BIN"
+          for k in 0 1 2 3 4; do
+            echo "===== kind $k ====="
+            "$BIN" -g a530 kind$k.bin || "$BIN" -c 0x5000500 kind$k.bin || true
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ir3-disasm
+          path: |
+            kind*.bin
