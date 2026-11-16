@@ -1,0 +1,47 @@
+diff --git a/bsd/dev/santoni_gpu_core.c b/bsd/dev/santoni_gpu_core.c
+--- a/bsd/dev/santoni_gpu_core.c
++++ b/bsd/dev/santoni_gpu_core.c
+@@ -672,3 +672,36 @@
++/*
++ * One-off probe: can the CP load a shader into a shader block at all?
++ * The block id is the only unknown (a4xx uses 8/12, adreno uses 4/6 and the
++ * packet field is 3 bits wide), so sgpuprobe=<n> selects it at boot.
++ * Nothing but CP_LOAD_STATE4, a fence and WAIT_FOR_IDLE is submitted, and a
++ * mismatch never fails the boot, so the display path stays untouched.
++ */
++static bool shader_probe(struct probe *p, uint32_t *wptr)
++{
++    uint32_t block = 0;
++    if (!PE_parse_boot_argn("sgpuprobe", &block, sizeof(block)) || !block)
++        return true;
++    uint32_t *ring = (uint32_t *)(void *)(p->memory.va + 3 * SGPU_PAGE);
++    uint32_t *marks =
++        (uint32_t *)(void *)(p->memory.va + 4 * SGPU_PAGE + SGPU_MARKER_OFFSET);
++    *wptr = 0;
++    ring[(*wptr)++] = sgpu_packet7(0x30, 3);            /* CP_LOAD_STATE4 */
++    ring[(*wptr)++] = (4u << 16) | ((block & 7u) << 19) | (1u << 22);
++    ring[(*wptr)++] = ((SGPU_MARKER_VA >> 2) & 0x3fffffffu) << 2;
++    ring[(*wptr)++] = 0;
++    ring[(*wptr)++] = sgpu_packet7(0x3d, 3);            /* CP_MEM_WRITE */
++    ring[(*wptr)++] = SGPU_MARKER_VA + SGPU_MARKER_OFFSET;
++    ring[(*wptr)++] = 0;
++    ring[(*wptr)++] = 0x5a5a0000u | block;
++    ring[(*wptr)++] = sgpu_packet7(0x26, 0);            /* WAIT_FOR_IDLE */
++    if (!consume(p, *wptr)) return false;
++    p->ops->invalidate(p->ops->ctx, marks, 64);
++    uint32_t got = ((volatile uint32_t *)marks)[0];
++    uint32_t want = 0x5a5a0000u | block;
++    trace(p, "shader probe block/fence/want", block, got, want);
++    return got == want;
++}
++
+ static bool marker_test(struct probe *p, const struct sgpu_firmware *fw, uint32_t *wptr)
+ {
+     uint32_t *ring = (uint32_t *)(void *)(p->memory.va + 3 * SGPU_PAGE);
+@@ -704,5 +704,6 @@
+     faults(p);
+     if (has_fault(report)) { report->error = SG_FAULT; goto done; }
++    (void)shader_probe(p, &wptr);
+     if (ops->stock_unsecure == 1) {
+         report->stage = SG_STOCK_TRANSITION;
+         passed = sgpu_stock_transition(p, mode, wptr);
